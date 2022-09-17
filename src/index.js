@@ -1,4 +1,3 @@
-import fetchImages from './js/fetchImages';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
@@ -7,19 +6,20 @@ import ImagesApiService from './js/fetchImages';
 
 const searchForm = document.querySelector('.search-form');
 const loadMoreBtn = document.querySelector('.load-more');
+const checkBox = document.querySelector('#changeScrollBehaviour');
 const galleryContainer = document.querySelector('.gallery');
 
 const lbGallery = new SimpleLightbox('.gallery a', {
-  captions: true,
-  captionsData: 'alt',
-  captionDelay: 300,
+  // captions: true,
+  // captionsData: 'alt',
+  // captionDelay: 300,
   loop: false,
 });
 const imagesApiService = new ImagesApiService();
 
 searchForm.addEventListener('submit', onSearh);
 loadMoreBtn.addEventListener('click', onLoadMore);
-// window.addEventListener('scroll', searchOnScroll); почему то срабатывает несколько раз
+// window.addEventListener('scroll', searchOnScroll); // почему то срабатывает несколько раз
 
 function onSearh(event) {
   event.preventDefault();
@@ -36,22 +36,25 @@ function onSearh(event) {
     );
   }
 
-  imagesApiService.fetchImages().then(images => {
-    if (images.hits.length === 0) {
-      return Notify.failure(
-        'Sorry, there are no images matching your search query. Please try again.'
-      );
-    }
+  imagesApiService
+    .fetchImages()
+    .then(images => {
+      if (images.hits.length === 0) {
+        return Notify.failure(
+          'Sorry, there are no images matching your search query. Please try again.'
+        );
+      }
 
-    Notify.success(`Hooray! We found ${images.totalHits} images.`);
-    galleryContainer.innerHTML = createGallery(images);
-    lbGallery.refresh();
-    countMaxPages(images);
+      Notify.success(`Hooray! We found ${images.totalHits} images.`);
+      galleryContainer.innerHTML = createGallery(images);
+      lbGallery.refresh();
+      countMaxPages(images);
 
-    if (imagesApiService.page !== imagesApiService.maxPages) {
-      makeLoadMoreBtnVisible();
-    }
-  });
+      if (imagesApiService.page !== imagesApiService.maxPages) {
+        makeLoadMoreBtnVisible();
+      }
+    })
+    .catch(onFetchError);
 }
 
 function onLoadMore() {
@@ -133,14 +136,19 @@ function loadLastImages() {
 }
 
 function searchOnScroll() {
-  const contentHeight = galleryContainer.offsetHeight; // 1) высота блока контента вместе с границами
-  const yOffset = window.pageYOffset; // 2) текущее положение скролбара
-  const window_height = window.innerHeight; // 3) высота внутренней области окна документа
-  const y = yOffset + window_height + 10;
+  const contentHeight = galleryContainer.offsetHeight; // высота блока контента вместе с границами
+  const yOffset = window.pageYOffset; // текущее положение скролбара
+  const window_height = window.innerHeight + 10; // высота внутренней области окна документа
+  const scrollMax = yOffset + window_height;
 
   // если пользователь достиг конца
-  if (y >= contentHeight) {
+  if (scrollMax >= contentHeight) {
     console.log('next page');
     onLoadMore();
   }
+}
+
+function onFetchError(error) {
+  console.log(error);
+  Notify.failure('Oops... Something was wrong, please try again.');
 }
