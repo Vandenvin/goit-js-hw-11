@@ -3,20 +3,10 @@ import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
 import 'notiflix/dist/notiflix-3.2.5.min.css';
-
-Notify.init({
-  width: '350px',
-  // fontSize: '18px',
-  position: 'right-top',
-  distance: '10px',
-  opacity: 1,
-  success: {
-    background: '#008900',
-    notiflixIconColor: '#003b00',
-  },
-});
+import ImagesApiService from './js/fetchImages';
 
 const searchForm = document.querySelector('.search-form');
+const loadMoreBtn = document.querySelector('.load-more');
 const galleryContainer = document.querySelector('.gallery');
 
 const lbGallery = new SimpleLightbox('.gallery a', {
@@ -25,30 +15,56 @@ const lbGallery = new SimpleLightbox('.gallery a', {
   captionDelay: 300,
   loop: false,
 });
+const imagesApiService = new ImagesApiService();
 
-searchForm.addEventListener('submit', onSubmitClick);
+searchForm.addEventListener('submit', onSearh);
+loadMoreBtn.addEventListener('click', onLoadMore);
+// window.addEventListener('scroll', searchOnScroll); почему то срабатывает несколько раз
 
-function onSubmitClick(event) {
+function onSearh(event) {
   event.preventDefault();
-  galleryContainer.innerHTML = ``;
+  clearGalleryContainer();
 
-  const searchQuery = event.currentTarget.elements.searchQuery.value;
+  imagesApiService.searchQuery =
+    event.currentTarget.elements.searchQuery.value.trim();
 
-  if (searchQuery === '') {
-    return alert('Введи что-то');
+  imagesApiService.resetPage();
+
+  if (imagesApiService.searchQuery === '') {
+    return Notify.failure(
+      'Sorry, Nothing entered to search. Please try again.'
+    );
   }
 
-  fetchImages(searchQuery).then(images => {
+  imagesApiService.fetchImages().then(images => {
     if (images.hits.length === 0) {
       return Notify.failure(
         'Sorry, there are no images matching your search query. Please try again.'
       );
     }
+
     Notify.success(`Hooray! We found ${images.totalHits} images.`);
     galleryContainer.innerHTML = createGallery(images);
+    lbGallery.refresh();
+    countMaxPages(images);
 
+    if (imagesApiService.page !== imagesApiService.maxPages) {
+      makeLoadMoreBtnVisible();
+    }
+  });
+}
+
+function onLoadMore() {
+  imagesApiService.incremetPage();
+
+  imagesApiService.fetchImages().then(images => {
+    galleryContainer.insertAdjacentHTML('beforeEnd', createGallery(images));
     lbGallery.refresh();
   });
+
+  if (imagesApiService.page === imagesApiService.maxPages) {
+    loadLastImages();
+  }
 }
 
 function createGallery(images) {
@@ -82,4 +98,49 @@ function createGallery(images) {
         `;
     })
     .join('');
+}
+
+function clearGalleryContainer() {
+  galleryContainer.innerHTML = ``;
+}
+
+function countMaxPages(images) {
+  if (images.totalHits % imagesApiService.perPage === 0) {
+    imagesApiService.maxPages = Math.trunc(
+      images.totalHits / imagesApiService.perPage
+    );
+  } else {
+    imagesApiService.maxPages =
+      Math.trunc(images.totalHits / imagesApiService.perPage) + 1;
+  }
+
+  if (imagesApiService.page === imagesApiService.maxPages) {
+    loadLastImages();
+  }
+}
+
+function makeLoadMoreBtnHidden() {
+  loadMoreBtn.classList.add('hidden');
+}
+
+function makeLoadMoreBtnVisible() {
+  loadMoreBtn.classList.remove('hidden');
+}
+
+function loadLastImages() {
+  Notify.info(`We're sorry, but you've reached the end of search results.`);
+  makeLoadMoreBtnHidden();
+}
+
+function searchOnScroll() {
+  const contentHeight = galleryContainer.offsetHeight; // 1) высота блока контента вместе с границами
+  const yOffset = window.pageYOffset; // 2) текущее положение скролбара
+  const window_height = window.innerHeight; // 3) высота внутренней области окна документа
+  const y = yOffset + window_height + 10;
+
+  // если пользователь достиг конца
+  if (y >= contentHeight) {
+    console.log('next page');
+    onLoadMore();
+  }
 }
