@@ -6,7 +6,6 @@ import ImagesApiService from './js/fetchImages';
 
 const searchForm = document.querySelector('.search-form');
 const loadMoreBtn = document.querySelector('.load-more');
-const checkBox = document.querySelector('#changeScrollBehaviour');
 const galleryContainer = document.querySelector('.gallery');
 
 const lbGallery = new SimpleLightbox('.gallery a', {
@@ -19,7 +18,7 @@ const imagesApiService = new ImagesApiService();
 
 searchForm.addEventListener('submit', onSearh);
 loadMoreBtn.addEventListener('click', onLoadMore);
-// window.addEventListener('scroll', searchOnScroll); // почему то срабатывает несколько раз
+// window.addEventListener('scroll', searchOnScroll);
 
 function onSearh(event) {
   event.preventDefault();
@@ -133,22 +132,17 @@ function makeLoadMoreBtnVisible() {
 function loadLastImages() {
   Notify.info(`We're sorry, but you've reached the end of search results.`);
   makeLoadMoreBtnHidden();
-}
-
-function searchOnScroll() {
-  const contentHeight = galleryContainer.offsetHeight; // высота блока контента вместе с границами
-  const yOffset = window.pageYOffset; // текущее положение скролбара
-  const window_height = window.innerHeight + 10; // высота внутренней области окна документа
-  const scrollMax = yOffset + window_height;
-
-  // если пользователь достиг конца
-  if (scrollMax >= contentHeight) {
-    console.log('next page');
-    onLoadMore();
-  }
+  return;
 }
 
 function onFetchError(error) {
   console.log(error);
   Notify.failure('Oops... Something was wrong, please try again.');
+}
+
+function searchOnScroll() {
+  const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+  if (clientHeight + scrollTop >= scrollHeight) {
+    onLoadMore();
+  }
 }
